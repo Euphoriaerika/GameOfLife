@@ -1,55 +1,52 @@
+import pygame
 import numpy as np
-import random
+
+from .configuration import *
 
 
 class Map:
-    def __init__(self, h=5, w=5, live='#', dead=' '):
-        self.char_live = live
-        self.char_dead = dead
+    def __init__(self, h=25, w=25, live_color=(0, 255, 0), dead_color=(0, 0, 0)):
+        self.live_color = live_color
+        self.dead_color = dead_color
         self.height = h
         self.width = w
-        self.map = np.array([[self.char_dead] * self.width] * self.height)
+        self.map = self._set_random(h, w)  # Map as matrix of booleans
 
-    def show_map(self):
-        print(self.map)
-
-    def set_random(self):
-        for i in range(self.height):
-            for j in range(self.width):
-                if random.randint(0, 1):
-                    self.map[i, j] = self.char_live
-
-    def set_cord(self, cord=np.array([0, 0])):
-        if not (0 <= cord[0] < self.height):
-            return
-        if not (0 <= cord[1] < self.width):
-            return
-
-        self.map[cord[0]][cord[1]] = self.char_live
+    def _set_random(self, h, w):
+        """
+        Set random initial state of the map.
+        """
+        return np.random.choice([True, False], size=(h, w), p=[0.3, 0.7])
 
     def update(self):
+        """
+        Update the map according to the rules of the game of life.
+        """
         new_map = self.map.copy()
-        for i in range(self.height):  # прохід по мапі
+        for i in range(self.height):
             for j in range(self.width):
-                flag = True
-                if self.map[i, j] == self.char_live:  # якщо знайдено не пусту ячейку виконуэм для неъ правила
-                    flag = False
-                count = 0
-                for k in range(-1, 2):
-                    for l in range(-1, 2):
-                        if i + k < 0 or i + k >= self.height:
-                            continue
-                        if j + l < 0 or j + l >= self.height:
-                            continue
-                        if self.map[i + k, j + l] == self.char_dead:
-                            continue
-                        if k == 0 and l == 0:
-                            continue
-                        count += 1
-                if flag:
-                    if count == 3:
-                        new_map[i, j] = self.char_live
-                    continue
-                if count < 2 or count > 3:
-                    new_map[i, j] = self.char_dead
-        self.map = new_map.copy()
+                count = (
+                    np.sum(
+                        self.map[
+                            max(0, i - 1) : min(self.height, i + 2),
+                            max(0, j - 1) : min(self.width, j + 2),
+                        ]
+                    )
+                    - self.map[i, j]
+                )
+                if self.map[i, j]:
+                    new_map[i, j] = count in [2, 3]
+                else:
+                    new_map[i, j] = count == 3
+        self.map = new_map
+
+    def draw(self, screen):
+        """
+        Draw the map on the screen.
+        """
+        for i in range(self.height):
+            for j in range(self.width):
+                color = self.live_color if self.map[i, j] else self.dead_color
+                pygame.draw.rect(
+                    screen, color, (j * CELL_SIZE, i * CELL_SIZE, CELL_SIZE, CELL_SIZE)
+                )
